@@ -9,7 +9,7 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 
-// [ 应用入口文件 ]ces
+// [ 应用入口文件 ]
 namespace think;
 
 require __DIR__ . '/../vendor/autoload.php';

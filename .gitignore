@@ -8,7 +8,7 @@
 /.buildpath
 /.project
 !/runtime/*
-!/public/excel/*
-!/public/UploadFile/*
-!/public/admin/*
+!/public/excel
+!/public/UploadFile
+!/public/admin
 
