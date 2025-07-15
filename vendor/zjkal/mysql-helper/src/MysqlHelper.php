@@ -1,0 +1,254 @@
+<?php
+declare (strict_types=1);
+
+namespace zjkal;
+
+use InvalidArgumentException;
+use mysqli;
+
+/**
+ * 最方便的mysql操作类,可以便捷导入.sql文件和将数据库导出为.sql文件
+ * Class MysqlHelper
+ * @package zjkal
+ */
+class MysqlHelper
+{
+    /**
+     * @var string 服务器地址
+     */
+    private $host = '127.0.0.1';
+    /**
+     * @var int 端口号
+     */
+    private $port = 3306;
+    /**
+     * @var string 用户名
+     */
+    private $username;
+    /**
+     * @var string 密码
+     */
+    private $password;
+    /**
+     * @var string 数据库名
+     */
+    private $database;
+    /**
+     * @var string 字符集
+     */
+    private $charset = 'utf8mb4';
+
+    /**
+     * @var string 表前缀
+     */
+    private $prefix = '';
+
+    /**
+     * 构造函数
+     * @param string|null $username 用户名
+     * @param string|null $password 密码
+     * @param string|null $database 数据库名
+     * @param string      $host     服务器地址(默认为127.0.0.1)
+     * @param string|int  $port     端口号(默认为3306)
+     * @param string      $prefix   表前缀(默认为空)
+     * @param string      $charset  字符集(默认为utf8mb4)
+     */
+    public function __construct(string $username = null, string $password = null, string $database = null, string $host = '127.0.0.1', $port = 3306, string $prefix = '', string $charset = 'utf8mb4')
+    {
+        if (!in_array($charset, ['utf8mb4', 'utf8', 'gbk', 'gb2312'])) {
+            throw new InvalidArgumentException('字符集只能是 utf8mb4, utf8, gbk 或 gb2312');
+        }
+        if (!is_numeric($port)) {
+            throw new InvalidArgumentException('端口号必须是数字');
+        }
+
+        $this->username = $username;
+        $this->password = $password;
+        $this->database = $database;
+        $this->host = $host;
+        $this->port = intval($port);
+        $this->prefix = $prefix;
+        $this->charset = $charset;
+    }
+
+    /**
+     * @param array $config 设置参数
+     * @return void
+     */
+    public function setConfig(array $config = [])
+    {
+        if (empty($config)) {
+            throw new InvalidArgumentException('配置数组不能为空');
+        }
+        if (empty($config['username']) || empty($config['password']) || empty($config['database'])) {
+            throw new InvalidArgumentException('配置数据必须包含用户名,密码和数据库名');
+        }
+        $this->__construct(
+            $config['username'],
+            $config['password'],
+            $config['database'],
+            $config['host'] ?? $config['hostname'] ?? '127.0.0.1',
+            $config['port'] ?? $config['hostport'] ?? 3306,
+            $config['prefix'] ?? '',
+            $config['charset'] ?? 'utf8mb4'
+        );
+    }
+
+    /**
+     * 将.sql文件导入到mysql数据库
+     * @param string $sqlFilePath       .sql文件路径
+     * @param string $prefix            表前缀(优先级高于构造函数中的表前缀,默认为空)
+     * @param bool   $dropTableIfExists 如果表已存在，是否先删除(默认为false)
+     * @return void
+     */
+    public function importSqlFile(string $sqlFilePath, string $prefix = '', bool $dropTableIfExists = false)
+    {
+
+        if (!file_exists($sqlFilePath)) {
+            throw new InvalidArgumentException('sql文件不存在');
+        }
+
+        $prefix = $prefix ?: $this->prefix;
+
+        // 创建MySQL连接
+        $conn = new mysqli($this->host, $this->username, $this->password, $this->database, $this->port);
+
+        // 检查连接是否成功
+        if ($conn->connect_error) {
+            throw new \mysqli_sql_exception("数据库连接失败: " . $conn->connect_error);
+        }
+
+        // 设置编码
+        $conn->set_charset($this->charset);
+
+        // 读取.sql文件内容并过滤注释
+        $sqlContent = file_get_contents($sqlFilePath);
+        $sqlContent = preg_replace("/(\/\*.*?\*\/|--.*?$)/ms", '', $sqlContent);
+        // 分割SQL语句
+        $sqlContent = explode(";", $sqlContent);
+        //去掉每条sql语句两边的空格和换行
+        $sqlContent = array_map(function ($value) {
+            return trim($value);
+        }, $sqlContent);
+        // 过滤空数组
+        $sqlContent = array_filter($sqlContent);
+
+        // 执行每个SQL语句
+        foreach ($sqlContent as $sql) {
+            // 替换表前缀
+            if (!empty($prefix)) {
+                $sql = str_ireplace('__PREFIX__', $prefix, $sql);
+            }
+
+            //判断如果是创建表的SQL语句
+            if (stripos($sql, 'CREATE TABLE') !== false) {
+                //判断如果表已经存在是否先删除
+                if ($dropTableIfExists) {
+                    //提取出表的名称
+                    preg_match('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?(\w+)`?/i', $sql, $matches);
+                    $tableName = $matches[1];
+                    //删除表
+                    $conn->query("DROP TABLE IF EXISTS `$tableName`");
+                } else {
+                    // 忽略已经存在的表结构
+                    if (stripos($sql, 'CREATE TABLE IF NOT EXISTS') === false) {
+                        $sql = str_ireplace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS', $sql);
+                    }
+                }
+            }
+
+            // 忽略插入重复数据
+            if (stripos($sql, 'INSERT IGNORE INTO') === false) {
+                $sql = str_ireplace('INSERT INTO', 'INSERT IGNORE INTO', $sql);
+            }
+
+            $result = $conn->query($sql);
+            if (!$result) {
+                throw new \mysqli_sql_exception("导入失败: " . $conn->error);
+            }
+        }
+
+        // 关闭连接
+        $conn->close();
+    }
+
+    /**
+     * 将mysql数据库表结构和数据导出为.sql文件
+     * @param string $sqlFilePath             导出的.sql文件路径
+     * @param bool   $withData                是否导出表数据(默认为true)
+     * @param array  $tables                  要导出的表名数组(默认为空，即导出所有表)
+     * @Param bool   $disableForeignKeyChecks 禁用外键检查（默认为false）
+     * @return void
+     */
+    public function exportSqlFile(string $sqlFilePath, bool $withData = true, array $tables = [], bool $disableForeignKeyChecks = false)
+    {
+        // 创建MySQL连接
+        $conn = new mysqli($this->host, $this->username, $this->password, $this->database, $this->port);
+
+        // 检查连接是否成功
+        if ($conn->connect_error) {
+            throw new \mysqli_sql_exception("数据库连接失败: " . $conn->connect_error);
+        }
+
+        // 设置编码
+        $conn->set_charset($this->charset);
+
+        // 获取所有表名
+        $result = $conn->query("SHOW TABLES");
+        $all_tables = [];
+
+        while ($row = $result->fetch_row()) {
+            $all_tables[] = $row[0];
+        }
+
+        // 打开输出文件
+        $outputFile = fopen($sqlFilePath, 'w');
+
+        // 设置禁用外键检查
+        if ($disableForeignKeyChecks) {
+            fwrite($outputFile, "SET FOREIGN_KEY_CHECKS=0;\n");
+        }
+
+        // 循环每个表，导出结构和数据
+        foreach ($all_tables as $table) {
+            if (!empty($tables) && !in_array($table, $tables)) {
+                continue;
+            }
+            //如果设置了表前缀,且传入的表名不包含表前缀,则补上
+            if (!empty($this->prefix) && strpos($table, $this->prefix) !== 0) {
+                $table = $this->prefix . $table;
+            }
+
+            // 导出表结构
+            fwrite($outputFile, "-- 表结构：$table\n");
+            $createTableSQL = $conn->query("SHOW CREATE TABLE $table");
+            $createTableRow = $createTableSQL->fetch_row();
+            fwrite($outputFile, $createTableRow[1] . ";\n");
+
+            if ($withData) {
+                // 导出表数据
+                $result = $conn->query("SELECT * FROM $table");
+                if (!$result) {
+                    fwrite($outputFile, "/* 查询失败或" . $table . "表不存在 */\n");
+                } else if ($result->num_rows == 0) {
+                    fwrite($outputFile, "/* " . $table . "表没有数据 */\n");
+                } else {
+                    fwrite($outputFile, "-- 表数据：$table\n");
+                    while ($row = $result->fetch_assoc()) {
+                        $escapedValues = array_map(function ($value) use ($conn) {
+                            return $conn->escape_string(strval($value));
+                        }, $row);
+                        $columns = implode("','", $escapedValues);
+                        fwrite($outputFile, "INSERT INTO `$table` VALUES ('$columns');\n");
+                    }
+                    //释放结果集
+                    $result->free();
+                }
+            }
+        }
+
+        // 关闭文件和连接
+        fclose($outputFile);
+        $conn->close();
+    }
+}

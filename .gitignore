@@ -1,0 +1,14 @@
+.well-known
+.DS_Store
+.idea
+.vscode
+*.log
+/.env
+/.settings
+/.buildpath
+/.project
+!/runtime/*
+!/public/excel/*
+!/public/UploadFile/*
+!/public/admin/*
+

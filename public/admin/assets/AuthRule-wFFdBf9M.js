@@ -1,0 +1,1 @@
+import{b as u}from"./entry/index-B71DeBfR.js";function r(t){return u.post({url:"/getAuthRuleList",params:t})}function l(t){return u.put({url:"/UpgradeAuthRule",params:t})}function n(t){return u.put({url:"/AddAuthRule",params:t})}function A(t){return u.delete({url:"/DeleteAuthRule",params:t})}export{n as A,A as D,l as U,r as g};

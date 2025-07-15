@@ -1,0 +1,1 @@
+import{b as r}from"./entry/index-B71DeBfR.js";function n(t){return r.post({url:"/getFinancialRecords",params:t})}function o(t){return r.post({url:"/getInerFaceLogList",params:t})}function i(t){return r.post({url:"/getLoginHistoryList",params:t})}export{o as a,i as b,n as g};

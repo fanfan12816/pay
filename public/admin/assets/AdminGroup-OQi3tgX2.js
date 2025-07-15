@@ -1,0 +1,1 @@
+import{b as t}from"./entry/index-B71DeBfR.js";function n(r){return t.post({url:"/getAdminGroupList",params:r})}function e(r){return t.put({url:"/UpgradeAdminGroup",params:r})}function d(r){return t.put({url:"/AddAdminGroup",params:r})}function o(r){return t.delete({url:"/DeleteAdminGroup",params:r})}export{d as A,o as D,e as U,n as g};

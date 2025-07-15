@@ -1,0 +1,123 @@
+<?php
+
+namespace app\admin\lists\channel;
+
+use app\admin\lists\BaseAdminDataLists;
+use app\common\lists\ListsSearchInterface;
+use app\common\lists\ListsSortInterface;
+use app\common\model\{Merchant,ChannelBank,MerchantChannel,Channel};
+use app\model\AdminMember;
+/**
+ * 列表
+ * Class WithdrawLists
+ */
+class BankLists extends BaseAdminDataLists implements ListsSearchInterface, ListsSortInterface
+{
+
+    /**
+     * @notes  设置搜索条件
+     * @return array
+     * @author heshihu
+     * @date 2022/2/8 18:39
+     */
+    public function setSearch(): array
+    {
+        return [
+            '=' => ['pay_type','status','type','channel_id']
+        ];
+    }
+
+    /**
+     * @notes  设置支持排序字段
+     * @return array
+     * @author heshihu
+     * @date 2022/2/9 15:11
+     */
+    public function setSortFields(): array
+    {
+        return ['create_time' => 'create_time', 'id' => 'id'];
+    }
+
+    /**
+     * @notes  设置默认排序
+     * @return array
+     * @author heshihu
+     * @date 2022/2/9 15:08
+     */
+    public function setDefaultOrder(): array
+    {
+        return [ 'sort' => 'ase'];
+    }
+
+    /**
+     * @notes 自定查询条件
+     * @return array
+     */
+    public function queryWhere()
+    {
+        $where = [];
+        if (!empty($this->params['keyword'])) {
+            $where[] = ['bank_name|user_name|bank_num|desc|remark|extra', 'like', '%' . $this->params['keyword'] . '%'];
+        }
+        if(!empty($this->params['start_time'])&&!empty($this->params['end_time'])){
+            $start_time=strtotime($this->params['start_time']);
+            $end_time=strtotime($this->params['end_time']);
+            $where[] = ['create_time', '>=', $start_time];
+            $where[] = ['create_time', '<=', $end_time];
+        }
+        return $where;
+    }
+    
+    /**
+     * @notes  获取管理列表
+     * @return array
+     */
+    public function lists(): array
+    {
+        $field = '*';
+        $lists = ChannelBank::field($field)
+            ->where($this->searchWhere)
+            ->where($this->queryWhere())
+            ->limit($this->limitOffset, $this->limitLength)
+            ->order($this->sortOrder)
+            ->select()
+            ->toArray();
+        $page_type=input("page_type",1);
+        // if(!empty($this->params['page_type'])){
+        //     $page_type=$this->params['page_type'];
+        // }
+        // $lists[]=MerchantChannel::getLastSql();
+        foreach ($lists as &$item) {
+            $item["create_time"]=diyTimestamp($item["create_time"]);
+            $item["update_time"]=diyTimestamp($item["update_time"]);
+            $channel=Channel::where(["id"=>$item['channel_id']])->field("name")->findOrEmpty();
+            $item['channel_title']=$channel['name'];
+            if($item['update_by']>0){
+                $admin=AdminMember::where(["member_id"=>$item['update_by']])->field("member_nickname")->findOrEmpty();
+                $item['update_by']=$admin['member_nickname'];
+            }
+            if($page_type==0){
+                $name=$item['bank_name'];
+                @$item['bank_name']=$name."(".$item['channel_title'].")";
+            }
+            $item['pg']=$page_type;
+        }
+        
+        if($page_type==0){
+            // $name=$item['bank_name'];
+            // @$item['bank_name']=$name."(".$item['channel_title'].")";
+            array_unshift($lists,["id"=>0,"bank_name"=>"默认"]);
+        }
+        return $lists;
+    }
+
+    /**
+     * @notes  获取数量
+     * @return int
+     */
+    public function count(): int
+    {
+        return ChannelBank::where($this->searchWhere)->where($this->queryWhere())->count();
+    }
+
+}

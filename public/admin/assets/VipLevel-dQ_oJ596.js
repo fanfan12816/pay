@@ -1,0 +1,1 @@
+import{b as t}from"./entry/index-B71DeBfR.js";function s(e){return t.post({url:"/getUserLevelList",params:e})}function L(e){return t.put({url:"/AddUserLevelList",params:e})}function l(e){return t.put({url:"/UpgradeUserLevelList",params:e})}function u(e){return t.delete({url:"/DeleteUserLevelList",params:e})}export{L as A,u as D,l as U,s as g};
