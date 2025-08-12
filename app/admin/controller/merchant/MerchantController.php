@@ -119,21 +119,31 @@ class MerchantController extends AdminController {
   public function edit() {
     # 如果请求头中有携带token
     if ($this -> member_id) {
+        $prefix="merchantAdmin";
+        $ip=getClientIP();
         $params = (new MerchantValidate())->post()->goCheck('edit');
+        addLog($prefix,1,'','');
+        addLog($prefix,0,$params,'接收的参数');
+        addLog($prefix,0,[$ip,$this -> member_id],'修改人信息');
         if(!empty($params['password'])){
             $params['password'] = encode($params['password']);
         }
         $merchant=Merchant::field(['id','debug','ip_white','password','avatar','disable','nick_name','ip_white','timezone'])->find($params['id']);
         $newdata=isModification($params,$merchant);
+        addLog($prefix,0,[$params,$merchant,$newdata],'修改的参数');
         // return messageReturn(1,'操作成功',[$params,$merchant,$newdata]);
         if(array_key_exists('newData',$newdata)){
             $newdata['newData']['update_by']=$this -> member_id;
             $merchant->allowField(['debug','password','avatar','ip_white','disable','nick_name','ip_white','timezone','update_by'])->save($newdata['newData']);
+            addLog($prefix,0,[$merchant],'修改完成');
+            addLog($prefix,2,'','');
             return messageReturn(1,"操作成功");
         }else{
+            addLog($prefix,0,[],'数据相同,未作修改');
+            addLog($prefix,2,'','');
             return messageReturn(0,"数据相同,未作修改");
         }
-      
+        
     } else {
       # 未登录
       return messageReturn(400,'您当前未登录');

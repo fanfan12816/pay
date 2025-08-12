@@ -125,7 +125,12 @@ class PayinController extends BaseController {
             if(empty($cashier_url)){
                $cashier_url ="收银台未配置地址";
             }else{
-                $cashier_url=$cashier_url."/".$theme."/#/".$order_sn;
+                if(substr($cashier_url, strlen($cashier_url) - 1, 1)=='/'){
+                    $cashier_url=$cashier_url.$theme."/#/".$order_sn;
+                }else{
+                    $cashier_url=$cashier_url."/".$theme."/#/".$order_sn;
+                }
+                // $cashier_url=$cashier_url."/".$theme."/#/".$order_sn;
             }
             $rtData=[
                 "mch_sn"=>$mch_sn,

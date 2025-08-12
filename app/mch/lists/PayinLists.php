@@ -113,7 +113,12 @@ class PayinLists extends BaseMchDataLists implements ListsSearchInterface, Lists
               $syturl ="收银台未配置地址";
             }else{
                 @$theme=$item['theme']??"";
-                $syturl=$syturl."/".$theme."/#/".$item['order_sn'];
+                // $syturl=$syturl."/".$theme."/#/".$item['order_sn'];
+                if(substr($syturl, strlen($syturl) - 1, 1)=='/'){
+                    $syturl=$syturl.$theme."/#/".$item['order_sn'];
+                }else{
+                    $syturl=$syturl."/".$theme."/#/".$item['order_sn'];
+                }
             }
             // 收银台
             $item['cashier_desk']=$syturl;

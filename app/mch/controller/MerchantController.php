@@ -99,9 +99,13 @@ class MerchantController extends MchController {
    * @Apidoc\Param("timezone", type="number", require=true, desc="时区")
    */
   public function update() {
+    $prefix="merchantUser";
+    $ip=getClientIP();
     $api_type=input("api_type")??"";
     $verify_code                =  input('verify_code')??""; # 获取验证码
     if ($this -> mchid) {
+        addLog($prefix,1,'','');
+        addLog($prefix,0,[$ip,$this -> mchid],'修改人信息');
         $merchant=Merchant::find($this -> mchid);
         switch ($api_type) {
             case 'info':
@@ -135,6 +139,7 @@ class MerchantController extends MchController {
                 break;
             case 'password':
                 $params = (new MerchantValidate())->post()->goCheck('password');
+                addLog($prefix,0,$params,'接收的参数');
                  # 加密密码
                 $enPwd = encode($params['password']);
                 if($enPwd!==$merchant->password){
@@ -144,6 +149,8 @@ class MerchantController extends MchController {
                 $merchant->save([
                     "password"=>$password
                 ]);
+                addLog($prefix,0,[$merchant],'修改完成');
+                addLog($prefix,2,'','');
                 return messageReturn(200,"操作成功");
                 
             case 'upGoogle':

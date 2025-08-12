@@ -105,7 +105,11 @@ class PayoutController extends AdminController {
             ["key"=>"create_time","title"=>"创建时间","txt"=>[]],
             ["key"=>"update_time","title"=>"更新时间","txt"=>[]],
         ];
-        
+        foreach ($list as &$v) {
+            // code...
+            // $v['bank_num_wb']='银行卡号码'."-".$v['bank_num'];
+            $v['bank_num']=$v['bank_num']." ";
+        }
         $rt=ExcelService::excel($head, $list,"PayoutLists",'代付列表'.$lists->pageNo."_".$lists->pageSize."_".$lists->count());
         $data=["url"=>FileService::getFileUrl($rt)];
         return ajaxReturn(1,'操作成功',$data);

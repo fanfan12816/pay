@@ -61,6 +61,8 @@ class PayoutLists extends BaseAdminDataLists implements ListsSearchInterface, Li
             $end_time=strtotime($this->params['end_time']);
             $where[] = ['create_time', '>=', $start_time];
             $where[] = ['create_time', '<=', $end_time];
+            // $where[] = ['create_time', '>=', 1754859600];
+            // $where[] = ['create_time', '<=', 1754946000];
             // $this->limitLength=2000;
         }
         if(!empty($this->params['bank_name'])){
@@ -69,8 +71,8 @@ class PayoutLists extends BaseAdminDataLists implements ListsSearchInterface, Li
         if(!empty($this->params['user_name'])){
             $where[] = ['user_name', 'like', '%' . $this->params['user_name'] . '%'];
         }
-        // if($this->params['mch_id']==943922){
-        //     // $this->limitLength=2000;
+        // if($this->params['mch_id']==737779){
+        //     $this->limitLength=3000;
         // }
         return $where;
     }

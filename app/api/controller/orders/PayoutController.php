@@ -104,7 +104,7 @@ class PayoutController extends BaseController {
         $timeNum=time();
         addLog($prefix,1,'','',$mch_id."_".$channel_id);
         addLog($prefix,0,$params,'接收的参数',$mch_id."_".$channel_id);
-        $maxnum=50;
+        $maxnum=200;
         if(count($data)>$maxnum){
             addLog($prefix,0,[count($data)],'订单数量超过',$mch_id."_".$channel_id);
             addLog($prefix,2,'','',$mch_id."_".$channel_id);

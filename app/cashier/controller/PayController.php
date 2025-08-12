@@ -167,7 +167,7 @@ class PayController  {
                         // 'fileSize' => 4 * 1024 * 1024,
                         // 限制文件后缀，多个后缀以英文逗号分割
                         // 'fileExt'  => 'gif,jpg,png,jpeg'
-                        'fileExt'  => 'jpg,png,jpeg,gif,bmp,webp'
+                        'fileExt'  => 'jpg,png,jpeg,gif,bmp,webp,jfif'
                     ]
                 ],
                 [

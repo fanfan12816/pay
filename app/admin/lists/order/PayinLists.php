@@ -69,8 +69,14 @@ class PayinLists extends BaseAdminDataLists implements ListsSearchInterface, Lis
             // $where[] = ['create_time', '<=', 1751299200];
             // $where[] = ['amount', '>=', 5000];
             // $this->limitOffset=0;
-            // $this->limitLength=5000;
+            // $this->limitLength=5000; 
+            // $where[] = ['create_time', '>=', 1754859600];
+            // $where[] = ['create_time', '<=', 1754946000];
+            // $this->limitLength=2000;
         }
+        // if($this->params['mch_id']==943922){
+        //     $this->limitLength=3000;
+        // }
         return $where;
     }
     /**
@@ -117,7 +123,12 @@ class PayinLists extends BaseAdminDataLists implements ListsSearchInterface, Lis
                $syturl ="收银台未配置地址";
             }else{
                 @$theme=$item['theme']??"";
-                $syturl=$syturl."/".$theme."/#/".$item['order_sn'];
+                if(substr($syturl, strlen($syturl) - 1, 1)=='/'){
+                    $syturl=$syturl.$theme."/#/".$item['order_sn'];
+                }else{
+                    $syturl=$syturl."/".$theme."/#/".$item['order_sn'];
+                }
+                // $syturl=$syturl."/".$theme."/#/".$item['order_sn'];
             }
             // 收银台
             $item['cashier_desk']=$syturl;
