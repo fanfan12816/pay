@@ -7,8 +7,8 @@ use app\bot\logic\IndexLogic;
 use app\common\service\bot\BotService;
 use think\response\Json;
 use app\common\model\bot\{BotUser,BotMessage,BotTggroup,BotGroupUser};
-use app\common\model\{Merchant,PayinOrder,BotGroup};
-use app\common\service\{PayinCallbackService};
+use app\common\model\{Merchant,PayinOrder,PayoutOrder,BotGroup};
+use app\common\service\{PayinCallbackService,PayoutCallbackService};
 use app\common\service\ConfigService;
 
 /**
@@ -45,7 +45,22 @@ class CallbackQueryController extends BaseBotModeController
             $type=$return['status'];
             $order_sn=$return['order_sn'];
         }
-        
+        if(array_key_exists('t',$return)){
+            $type=$return['t'];
+            if($type==1){
+                $type="payin";
+            }
+            if($type==2){
+                $type="payout";
+            }
+            $order_sn=$return['sn'];
+            $cbstatus=$return['sts'];
+            $order_status=$return['osts'];
+            if($order_status>2){
+                $type = "yesCb";
+                BotService::addLog("CallbackQuery","已经回调了",[$tgid,$nickName,$userName]);
+            }
+        }
         BotService::addLog("CallbackQuery","text","获取管理员");
         $admin = BotGroup::where(['chat_id' => $chat_id]) -> value('remark');
         $adminList=explode(',', $admin);
@@ -77,55 +92,155 @@ class CallbackQueryController extends BaseBotModeController
                 $_txt="订单号不存在";
             }
         }
+        $stlist=["等待付款","待确认","审核成功","审核失败","超时关闭","手动关闭"];
+        if($type=="payin"){
+            BotService::addLog("CallbackQuery","text","获取代收订单;type:{$order_sn}");
+            // 获取代收订单
+            if(!empty($order_sn)){
+                $Order=PayinOrder::where(['order_sn' => $order_sn])->findOrEmpty();
+                BotService::addLog("CallbackQuery","订单获取成功",$Order);
+                if($Order->isEmpty()){
+                    $type="orderNot";
+                    $_txt="订单不存在";
+                }else{
+                    if($Order->status>1){
+                        $type="orderNot";
+                        @$_txt="订单已经回调,订单状态：".$stlist[$Order->status];
+                    }
+                }
+            }else{
+                $type="orderNot";
+                $_txt="订单号不存在";
+            }
+        }
+        if($type=="payout"){
+            BotService::addLog("CallbackQuery","text","获取代付订单;type:{$order_sn}");
+            // 获取代收订单
+            if(!empty($order_sn)){
+                $Order=PayoutOrder::where(['order_sn' => $order_sn])->findOrEmpty();
+                BotService::addLog("CallbackQuery","订单获取成功",$Order);
+                if($Order->isEmpty()){
+                    $type="orderNot";
+                    $_txt="订单不存在";
+                }else{
+                    if($Order->status>1){
+                        $type="orderNot";
+                         @$_txt="订单已经回调,订单状态：".$stlist[$Order->status];
+                    }
+                }
+            }else{
+                $type="orderNot";
+                $_txt="订单号不存在";
+            }
+        }
         BotService::addLog("CallbackQuery","text","开始匹配;type:{$type}");
         switch ($type) {
             default: 
                 $_txt="{$type},未支持";
                 break;
-            case '2':   
-                BotService::addLog("CallbackQuery","","开始匹配[回调成功];订单号:{$order_sn}");
-                
-                BotService::addLog("BotCallback","text","开始成功回调;订单号:{$order_sn}");
-                BotService::addLog("BotCallback","回调用户",[$tgid,$nickName,$userName]);
-                $cbText="已经成功回调";
-                $cb=PayinCallbackService::callback($order_sn,2);
-                BotService::addLog("BotCallback","回调结果",$cb);
-                if(!$cb['code']==200){
-                    $cbText=$cb['msg'];
+            case 'payin':  
+                switch ($cbstatus) {
+                    default: 
+                        $_txt="{$cbstatus},未支持";
+                    break;
+                case '2':   
+                    BotService::addLog("CallbackQuery","","开始代收匹配[回调成功];订单号:{$order_sn}");
+                    
+                    BotService::addLog("BotpayinCallback","text","开始成功回调;订单号:{$order_sn}");
+                    BotService::addLog("BotpayinCallback","回调用户",[$tgid,$nickName,$userName]);
+                    $cbText="已经成功回调";
+                    $cb=PayinCallbackService::callback($order_sn,2);
+                    BotService::addLog("BotpayinCallback","回调结果",$cb);
+                    if(!$cb['code']==200){
+                        $cbText=$cb['msg'];
+                    }
+                    BotService::addLog("BotpayinCallback","text","回调结束","end");
+                    
+                    $_txt="订单号:{$order_sn};$cbText";
+                    $reply_markup=json_encode([
+                        "inline_keyboard"=>[
+                            [["text"=>$cbText,"callback_data"=>json_encode(["sn"=>$order_sn,"sts"=>2,"osts"=>2,"t"=>$type])]]
+                        ]
+                    ]);
+                    
+                    BotService::addLog("CallbackQuery","text","已经回调操作成功");
+                break;
+                case '3':   
+                    BotService::addLog("CallbackQuery","","开始匹配[回调失败];订单号:{$order_sn}");
+                    
+                    BotService::addLog("BotpayinCallback","text","开始失败回调;订单号:{$order_sn}");
+                    BotService::addLog("BotpayinCallback","回调用户",[$tgid,$nickName,$userName]);
+                    $cbText="已经失败回调";
+                    $cb=PayinCallbackService::callback($order_sn,3);
+                    BotService::addLog("BotpayinCallback","回调结果",$cb);
+                    if(!$cb['code']==200){
+                        $cbText=$cb['msg'];
+                    }
+                    BotService::addLog("BotpayinCallback","text","回调结束","end");
+                    
+                    $_txt="订单号:{$order_sn};$cbText";
+                    $reply_markup=json_encode([
+                        "inline_keyboard"=>[
+                            [["text"=>$cbText,"callback_data"=>json_encode(["sn"=>$order_sn,"sts"=>3,"osts"=>3,"t"=>$type])]]
+                        ]
+                    ]);
+                    
+                    BotService::addLog("CallbackQuery","text","已经回调操作成功");
+                    
+                    break;
                 }
-                BotService::addLog("BotCallback","text","回调结束","end");
-                
-                $_txt="订单号:{$order_sn};$cbText";
-                $reply_markup=json_encode([
-                    "inline_keyboard"=>[
-                        [["text"=>$cbText,"callback_data"=>json_encode(["order_sn"=>$order_sn,"status"=>2])]]
-                    ]
-                ]);
-                
-                BotService::addLog("CallbackQuery","text","已经回调操作成功");
             break;
-            case '3':   
-                BotService::addLog("CallbackQuery","","开始匹配[回调失败];订单号:{$order_sn}");
-                
-                BotService::addLog("BotCallback","text","开始失败回调;订单号:{$order_sn}");
-                BotService::addLog("BotCallback","回调用户",[$tgid,$nickName,$userName]);
-                $cbText="已经失败回调";
-                $cb=PayinCallbackService::callback($order_sn,3);
-                BotService::addLog("BotCallback","回调结果",$cb);
-                if(!$cb['code']==200){
-                    $cbText=$cb['msg'];
+            case 'payout':  
+                switch ($cbstatus) {
+                    default: 
+                        $_txt="{$cbstatus},未支持";
+                    break;
+                case '2':   
+                    BotService::addLog("CallbackQuery","","开始代付匹配[回调成功];订单号:{$order_sn}");
+                    
+                    BotService::addLog("BotpayoutCallback","text","开始成功回调;订单号:{$order_sn}");
+                    BotService::addLog("BotpayoutCallback","回调用户",[$tgid,$nickName,$userName]);
+                    $cbText="已经成功回调";
+                    $cb=PayoutCallbackService::callback($order_sn,2);
+                    BotService::addLog("BotpayoutCallback","回调结果",$cb);
+                    if(!$cb['code']==200){
+                        $cbText=$cb['msg'];
+                    }
+                    BotService::addLog("BotpayoutCallback","text","回调结束","end");
+                    
+                    $_txt="订单号:{$order_sn};$cbText";
+                    $reply_markup=json_encode([
+                        "inline_keyboard"=>[
+                            [["text"=>$cbText,"callback_data"=>json_encode(["sn"=>$order_sn,"sts"=>2,"osts"=>2,"t"=>$type])]]
+                        ]
+                    ]);
+                    
+                    BotService::addLog("CallbackQuery","text","已经回调操作成功");
+                break;
+                case '3':   
+                    BotService::addLog("CallbackQuery","","开始匹配[回调失败];订单号:{$order_sn}");
+                    
+                    BotService::addLog("BotpayoutCallback","text","开始失败回调;订单号:{$order_sn}");
+                    BotService::addLog("BotpayoutCallback","回调用户",[$tgid,$nickName,$userName]);
+                    $cbText="已经失败回调";
+                    $cb=PayoutCallbackService::callback($order_sn,3);
+                    BotService::addLog("BotpayoutCallback","回调结果",$cb);
+                    if(!$cb['code']==200){
+                        $cbText=$cb['msg'];
+                    }
+                    BotService::addLog("BotpayoutCallback","text","回调结束","end");
+                    
+                    $_txt="订单号:{$order_sn};$cbText";
+                    $reply_markup=json_encode([
+                        "inline_keyboard"=>[
+                            [["text"=>$cbText,"callback_data"=>json_encode(["sn"=>$order_sn,"sts"=>3,"osts"=>3,"t"=>$type])]]
+                        ]
+                    ]);
+                    
+                    BotService::addLog("CallbackQuery","text","已经回调操作成功");
+                    
+                    break;
                 }
-                BotService::addLog("BotCallback","text","回调结束","end");
-                
-                $_txt="订单号:{$order_sn};$cbText";
-                $reply_markup=json_encode([
-                    "inline_keyboard"=>[
-                        [["text"=>$cbText,"callback_data"=>json_encode(["order_sn"=>$order_sn,"status"=>3])]]
-                    ]
-                ]);
-                
-                BotService::addLog("CallbackQuery","text","已经回调操作成功");
-                
             break;
             case 'notAdmin':   
                 $_txt="不是管理,不能使用";

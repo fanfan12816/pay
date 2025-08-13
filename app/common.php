@@ -1499,6 +1499,60 @@ if(!function_exists('addLog')){
         
     }
 }
+
+ /**
+* @notes 日志重写功能
+* @param $prefix文件类型
+* @param string $start 0 正常记录,1开始,2结束
+* @param null $data
+* @param null  $tt 标题
+* @return array|int|mixed|string
+*/
+if(!function_exists('nweAddLog')){
+    function nweAddLog($prefix="",$tt="", $data= '',$start = 0)
+    {
+        $t = date("Ymd",time());
+        $shi=date("H",time());
+        $day = date("Y-m-d H:i:s",time());
+        if(empty($prefix)){
+            $prefix="system";
+        }
+        if(is_array($data)){
+            $data=json_encode($data,JSON_UNESCAPED_UNICODE);
+        }
+        $dir=iconv("UTF-8", "GBK", app()->getRootPath().'runtime'. '/' .'customLog'. '/' .$t. '/' .$prefix);
+        if (!file_exists($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+        
+        // 创建文件
+        $file = fopen($dir."/{$shi}.log","a+");
+        
+        if($start==1){
+            fwrite($file,"\n");
+            fwrite($file,"\n");
+        }
+        fwrite($file,"╔========================[$day]========================╗\n");
+        if($start==1){
+            fwrite($file,"|                               日志开始                              |\n");
+        }
+        if(!empty($tt)){
+            fwrite($file,"   ┌---------------------------------------------------------------┑\n");
+            fwrite($file,"       {$tt}\n");
+            fwrite($file,"   ┗---------------------------------------------------------------┛\n");
+        }
+        if(!empty($data)){
+            fwrite($file,"   ┌---------------------------------------------------------------┑\n");
+            fwrite($file,"       {$data}\n\n");
+            fwrite($file,"   ┗---------------------------------------------------------------┛\n");
+        }
+        if($start==2){
+            fwrite($file,"|                               日志结束                              |\n");
+        }
+        fwrite($file,"╚=====================================================================╝\n");
+        
+    }
+}
 /**
  * 校验IP白名单
  * @param string $ip_whitelist 匹配IP列表

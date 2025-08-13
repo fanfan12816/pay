@@ -11,6 +11,7 @@ use app\api\common\service\{ApiService};
 
 use app\common\model\{Merchant,PayinOrder,PayoutOrder,MerchantRechargeOrder,MerchantWithdrawOrder,MerchantAccountLog,MerchantChannel,Channel,ChannelBank};
 use app\common\service\{ConfigService,MchSystemService};
+use app\common\jobs\{PayOutJobs};
 use think\facade\Cache;
 /**
  * @Apidoc\Title("代付对接接口")
@@ -96,6 +97,7 @@ class PayoutController extends BaseController {
             return ajaxReturn(50005,'Interface KEY error');
             // return ajaxReturn(50005,'接口KEY错误');
         }
+        // return input("mch_id",0);
         $params = (new ApiBaseValidate())->post()->goCheck('payoutBulkOrders');
         $mch_id=intval(input("mch_id",0));
         $channel_id=input("channel_id",0);
@@ -248,20 +250,20 @@ class PayoutController extends BaseController {
                 
                 $service_charge=$amount*$Channel['out_ratio']+$Channel['out_per'];//服务费
                 
-                if($type!="3"){
-                    $koumoney=(new MchSystemService())->MerchantMoney($mch_id,1,3,2,$amount+$service_charge,$order_sn,"代付下单扣除");
-                    if($koumoney['code']!=200){
-                        $returnList[]=[
-                            "code"=>0,
-                            "msg"=>$koumoney['msg'],
-                            "data"=>[
-                                "params"=>$v
-                            ],
-                        ];
-                        $errnum+=1;
-                        continue;
-                    }
-                }
+                // if($type!="3"){
+                //     $koumoney=(new MchSystemService())->MerchantMoney($mch_id,1,3,2,$amount+$service_charge,$order_sn,"代付下单扣除");
+                //     if($koumoney['code']!=200){
+                //         $returnList[]=[
+                //             "code"=>0,
+                //             "msg"=>$koumoney['msg'],
+                //             "data"=>[
+                //                 "params"=>$v
+                //             ],
+                //         ];
+                //         $errnum+=1;
+                //         continue;
+                //     }
+                // }
                 $indata=[
                     "mch_id"=>$mch_id,
                     "order_sn"=>$order_sn,
@@ -277,6 +279,7 @@ class PayoutController extends BaseController {
                     "iban"=>$field,
                     "user_phone"=>$user_phone,
                     "status_time"=>$timeNum,
+                    "status"=>6,
                     "request_time"=>$timeNum,
                     "expire_time"=>$expire_time,
                     "timezone"=>$this->MchInfo->timezone,
@@ -301,8 +304,10 @@ class PayoutController extends BaseController {
                 ];
                 $successnum+=1;
                 addLog($prefix,0,[$payModel],'单条代付请求完成',$mch_id."_".$channel_id);
-                // @$bt=$this->botSend($payModel);
-                // addLog($prefix,0,$bt,'机器人发送返回',$mch_id."_".$channel_id);
+                if($type!="3"){
+                    // 扣除代付队列
+                    PayOutJobs::dispatch(['order_sn'=>$order_sn]);
+                }
             }else{
                 $returnList[]=[
                     "code"=>0,
@@ -371,48 +376,6 @@ class PayoutController extends BaseController {
         }
         $Channel=$inMch['data'];
         $ip=getClientIP();
-        // $cacheKey="PayoutOrder".$mch_id;
-        // $cacheStr=Cache::get($cacheKey,''); 
-        // addLog($prefix,0,[$cacheKey,$cacheStr,$ip],'开始获取缓存信息',$mch_id."_".$channel_id);
-        // if($cacheStr==$ip){
-        //     addLog($prefix,0,[$cacheKey,$cacheStr,$ip],'订单未处理完成',$mch_id."_".$channel_id);
-        //     addLog($prefix,2,'','',$mch_id."_".$channel_id);
-        //     return ajaxReturn(0,'当前还有订单没处理完成',$params);
-        // }
-        // $cacheStr=Cache::set($cacheKey,$ip,3600); 
-        // addLog($prefix,0,[$cacheKey,$cacheStr,$ip],'结束获取缓存信息',$mch_id."_".$channel_id);
-        $oldcacheKey="PayoutOrder_03271634_".$mch_id;
-        $cacheKey="PayoutOrder_06192227_".$mch_id;
-        $cacheStr=Cache::get($cacheKey,''); 
-        addLog($prefix,0,[$cacheKey,$cacheStr,$ip,$mch_sn],'开始获取缓存信息',$mch_id."_".$channel_id);
-        // if($cacheStr==$ip){
-        //     addLog($prefix,0,[$cacheKey,$cacheStr,$ip],'订单未处理完成',$mch_id."_".$channel_id);
-        //     addLog($prefix,2,'','',$mch_id."_".$channel_id);
-        //     return ajaxReturn(0,'当前还有订单没处理完成',$params);
-        // }
-        if(Cache::get($oldcacheKey,'')==$ip){
-            $oldcacheStr=Cache::get($oldcacheKey,''); 
-            Cache::delete($oldcacheKey); 
-            addLog($prefix,2,[$cacheKey,$cacheStr,$oldcacheKey,$oldcacheStr,$ip],'清空了队列',$mch_id."_".$channel_id);
-            // return false;
-        }
-        $orderCount=0;
-        while(Cache::get($cacheKey)==$ip){
-            $sjsj=rand(500,1100);
-            addLog($prefix,0,[$cacheKey,$cacheStr,$ip,$mch_sn,$sjsj,time()],'订单未处理完成,延迟加载',$mch_id."_".$channel_id);
-            // $ztfh=sleep(1);
-            $ztfh=usleep($sjsj*1000);
-            addLog($prefix,0,[$mch_sn,$ztfh,$sjsj,$orderCount,time()],'延时器返回',$mch_id."_".$channel_id);
-            if($orderCount>=10){
-                addLog($prefix,0,[$mch_sn,$ztfh,$sjsj,$orderCount,time()],'订单超时',$mch_id."_".$channel_id);
-                Cache::delete($cacheKey); 
-                return ajaxReturn(0,'Order Timeout');
-            }
-            $orderCount+=1;
-        }
-        
-        $cacheStr=Cache::set($cacheKey,$ip,3600); 
-        addLog($prefix,0,[$cacheKey,$cacheStr,$ip],'结束获取缓存信息',$mch_id."_".$channel_id);
         $Model = PayoutOrder::where(['mch_id' => $mch_id,"channel_id"=>$channel_id,"mch_sn"=>$mch_sn])->findOrEmpty();
         if($Model->isEmpty()){
             $order_sn=generate_sn(PayoutOrder::class, 'order_sn',"PAYOUT");
@@ -431,15 +394,15 @@ class PayoutController extends BaseController {
             
             $service_charge=$amount*$Channel['out_ratio']+$Channel['out_per'];//服务费
             
-            if($type!="3"){
-                $koumoney=(new MchSystemService())->MerchantMoney($mch_id,1,3,2,$amount+$service_charge,$order_sn,"代付下单扣除");
-                if($koumoney['code']!=200){
-                    addLog($prefix,0,[$koumoney,$this->MchInfo],$koumoney['msg'],$mch_id."_".$channel_id);
-                    addLog($prefix,2,'','',$mch_id."_".$channel_id);
-                    Cache::delete($cacheKey); 
-                    return ajaxReturn(0,$koumoney['msg'],$this->MchInfo);
-                }
-            }
+            // if($type!="3"){
+            //     $koumoney=(new MchSystemService())->MerchantMoney($mch_id,1,3,2,$amount+$service_charge,$order_sn,"代付下单扣除");
+            //     if($koumoney['code']!=200){
+            //         addLog($prefix,0,[$koumoney,$this->MchInfo],$koumoney['msg'],$mch_id."_".$channel_id);
+            //         addLog($prefix,2,'','',$mch_id."_".$channel_id);
+            //         Cache::delete($cacheKey); 
+            //         return ajaxReturn(0,$koumoney['msg'],$this->MchInfo);
+            //     }
+            // }
             $bank_name=input('bank_name',"");
             $indata=[
                 "mch_id"=>$mch_id,
@@ -456,6 +419,7 @@ class PayoutController extends BaseController {
                 "iban"=>input('field',""),
                 "user_phone"=>input('user_phone',""),
                 "status_time"=>$timeNum,
+                "status"=>6,
                 "request_time"=>$timeNum,
                 "expire_time"=>$expire_time,
                 "timezone"=>$this->MchInfo->timezone,
@@ -471,15 +435,18 @@ class PayoutController extends BaseController {
                 "order_sn"=>$order_sn,
             ];
             addLog($prefix,0,[$rtData,$payModel],'代付请求完成',$mch_id."_".$channel_id);
-            // @$bt=$this->botSend($payModel);
-            // addLog($prefix,0,$bt,'机器人发送返回',$mch_id."_".$channel_id);
+            
+            if($type!="3"){
+                // 扣除代付队列
+                PayOutJobs::dispatch(['order_sn'=>$order_sn]);
+            }
+
             addLog($prefix,2,'','',$mch_id."_".$channel_id);
-            Cache::delete($cacheKey); 
             return ajaxReturn(1,'操作成功',$rtData);
         }else{
             addLog($prefix,0,[$Model],'订单已存在',$mch_id."_".$channel_id);
             addLog($prefix,2,'','',$mch_id."_".$channel_id);
-            Cache::delete($cacheKey); 
+            // Cache::delete($cacheKey); 
             return ajaxReturn(0,'订单已存在');
         }
     }

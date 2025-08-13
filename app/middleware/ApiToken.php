@@ -55,7 +55,7 @@ class ApiToken implements MiddlewareInterface {
             return messageReturn(5004,'商户密钥有误');
         }
         
-        $User['ip_white'].=",103.77.192.10";
+        $User['ip_white'].=",127.0.0.1";
         
         if(!empty($User['ip_white'])){
             $User['ip_white']=explode(',', $User['ip_white']);

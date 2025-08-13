@@ -131,8 +131,10 @@ class PayoutCallbackService
             $rt=posturl($notify_url,$dt,$token);
             MchSystemService::addLog($prefix,0,[$rt],'回调信息返回');
             MchSystemService::addLog($prefix,2);
-            $rt=str_replace("\"","", $rt);
-            $rt=str_replace("'","", $rt);
+            if(is_string($rt)){
+                $rt=str_replace("\"","", $rt);
+                $rt=str_replace("'","", $rt);
+            }
             $Model->notice_back=$rt;
             $Model->notice_count+=1;
             if(empty($rt)){

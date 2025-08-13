@@ -8,7 +8,7 @@ use app\common\model\{Merchant,PayinOrder,Language,ChannelBank,BotGroup};
 use app\common\service\{ConfigService,ImgcompressService};
 use think\facade\Filesystem;
 use think\facade\Request;
-use app\common\service\{PayinCallbackService};
+use app\common\service\{PayinCallbackService,BotSendService};
 use app\common\service\bot\BotService;
 /**
  * @Apidoc\Title("收银台")
@@ -294,7 +294,7 @@ class PayController  {
                 BotService::addLog($prefix,"回调返回",$cb);
                 // 机器人发送消息
                 
-                $btfh=$this->botSend($Model);
+                $btfh=BotSendService::payinSend("",$Model);
                 BotService::addLog($prefix,"机器人发送返回",$btfh,'end');
                 
                 return messageReturn(200,'success');
@@ -310,6 +310,7 @@ class PayController  {
         
         
     }
+    // 弃用
     public function botSend($Model){
             $prefix="Cashier";
             $imgUrl=ConfigService::get('img_post_url',"");
