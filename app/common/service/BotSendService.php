@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace app\common\service;
 
-use app\common\model\{PayoutOrder,PayinOrder,BotGroup,Merchant,MerchantAccountLog};
+use app\common\model\{PayoutOrder,PayinOrder,BotGroup,Merchant,MerchantAccountLog,ChannelBank};
 use app\common\service\bot\BotService;
 use app\common\service\{ConfigService};
 class BotSendService
@@ -147,7 +147,7 @@ class BotSendService
                 $reply_markup=json_encode([
                     "inline_keyboard"=>[
                         [
-                             ["text"=>'成功回调',"callback_data"=>json_encode(["sts"=>2,"sn"=>$Model->order_sn,"osts"=>$Model->status,"t"=>1])],
+                            ["text"=>'成功回调',"callback_data"=>json_encode(["sts"=>2,"sn"=>$Model->order_sn,"osts"=>$Model->status,"t"=>1])],
                             ["text"=>'失败回调',"callback_data"=>json_encode(["sts"=>3,"sn"=>$Model->order_sn,"osts"=>$Model->status,"t"=>1])]
                         ]
                     ]

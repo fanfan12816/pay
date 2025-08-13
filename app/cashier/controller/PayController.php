@@ -294,8 +294,8 @@ class PayController  {
                 BotService::addLog($prefix,"回调返回",$cb);
                 // 机器人发送消息
                 
-                $btfh=BotSendService::payinSend("",$Model);
-                BotService::addLog($prefix,"机器人发送返回",$btfh,'end');
+                @$btfh=BotSendService::payinSend("",$Model);
+                BotService::addLog($prefix,"机器人发送返回",[$btfh],'end');
                 
                 return messageReturn(200,'success');
             }else{
